@@ -1,18 +1,18 @@
 #include <iostream>
-// #include <utils/logger/logger.h>
+#include <logger/format.h>
 #include <logger/channel.h>
-#include <logger/color.h>
+// #include <logger/color.h>
 
 int main()
 {
     std::cout.tie(nullptr);
     std::ios::sync_with_stdio(false);
 
-    StdLoggerChannel channel(std::ostream(std::cout.rdbuf()));
-    channel.new_format().set_24bit(0, 255, 255, ColorFormat::AnsiMode::Foreground);
-    channel.add_format().set_24bit(255, 149, 202, ColorFormat::AnsiMode::Background);
-    channel.send("Hello world");
-
-    FileLoggerChannel channel2("./test.log");
-    channel2.send("Hello world");
+    ColorFormat color;
+    color.set_8bit(10, color_literals::Foreground);
+    FontFormat font;
+    font.set_bold(true);
+    auto ansi = "hello world"_ansi;
+    std::cout << color.apply(ansi) << std::endl;
+    std::cout << font.apply(ansi) << std::endl;
 }

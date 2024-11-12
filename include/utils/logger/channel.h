@@ -3,7 +3,6 @@
 
 #include <fstream>
 #include <string>
-#include <logger/color.h>
 
 class LoggerChannelBase {
 public:
@@ -11,22 +10,16 @@ public:
 
     virtual ~LoggerChannelBase() = default;
 protected:
-    ColorFormatPipe pipe;
-
-    explicit LoggerChannelBase(ColorFormat::EnableMode);
 public:
-    ColorFormat& add_format();
-    ColorFormat& new_format();
     virtual void send(std::string&&) = 0;
 };
 
 class StdLoggerChannel final : public LoggerChannelBase {
 private:
-    std::ostream& output;
+    std::ostream output;
 public:
-    explicit StdLoggerChannel(std::ostream&&);
+    explicit StdLoggerChannel(const std::ostream&);
 
-    static ColorFormat::EnableMode enable_mode();
     void send(std::string&&) override;
 };
 

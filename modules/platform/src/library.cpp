@@ -32,6 +32,8 @@ LibraryLoader::LibraryLoader(const Library library) {
         library_path = "./libDirectX.dll";
     } else if (library == Metal && hasMetal) {
         library_path = "./libMetal.dll";
+    } else {
+        library_path.clear();
     }
 
     if (library_path.empty()) {

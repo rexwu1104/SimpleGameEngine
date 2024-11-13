@@ -9,7 +9,7 @@ int main()
     std::ios::sync_with_stdio(false);
 
     ColorFormat color;
-    color.set_8bit(10, color_literals::Foreground);
+    color.set_8bit(10, literals::Foreground);
     FontFormat font;
     font.set_bold(true);
     auto ansi = "hello world"_ansi;

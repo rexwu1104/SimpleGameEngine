@@ -7,7 +7,7 @@
 #include <vector>
 #include <map>
 
-namespace color_literals {
+namespace literals {
     enum Ansi {
         Black,
         Red,
@@ -30,10 +30,6 @@ namespace color_literals {
         Bits8,
         Bits24,
     };
-}
-
-namespace font_literals {
-
 }
 
 enum Level {
@@ -70,13 +66,13 @@ FormatString operator""_ansi(const char*, size_t);
 
 class LazyMode {
 private:
-    std::map<std::ostream*, color_literals::Mode> stream_table;
+    std::map<std::ostream*, literals::Mode> stream_table;
     LazyMode() = default;
 public:
     LazyMode(const LazyMode&&) = delete;
 
     static LazyMode& get();
-    color_literals::Mode get_value(std::ostream* = nullptr);
+    literals::Mode get_value(std::ostream* = nullptr);
 };
 
 class FormatBase {
@@ -97,11 +93,11 @@ class ColorFormat final : public FormatBase {
 public:
     ColorFormat() = default;
 
-    ColorFormat& set_basic(color_literals::Ansi, color_literals::Position);
-    ColorFormat& set_8bit(color_literals::Ansi, color_literals::Position);
-    ColorFormat& set_8bit(byte, byte, byte, color_literals::Position);
-    ColorFormat& set_8bit(byte, color_literals::Position);
-    ColorFormat& set_24bit(byte, byte, byte, color_literals::Position);
+    ColorFormat& set_basic(literals::Ansi, literals::Position);
+    ColorFormat& set_8bit(literals::Ansi, literals::Position);
+    ColorFormat& set_8bit(byte, byte, byte, literals::Position);
+    ColorFormat& set_8bit(byte, literals::Position);
+    ColorFormat& set_24bit(byte, byte, byte, literals::Position);
 };
 
 class FontFormat final : public FormatBase {
@@ -110,6 +106,8 @@ private:
          italic    = false,
          underline = false,
          overline  = false;
+
+    void update();
 public:
     FontFormat() = default;
 

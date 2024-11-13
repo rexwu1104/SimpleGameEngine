@@ -65,10 +65,12 @@ LazyMode& LazyMode::get() {
     return *instance;
 }
 
-color_literals::Mode LazyMode::get_value(std::ostream* stream_p) {
-    auto result = color_literals::Mode::None;
+literals::Mode LazyMode::get_value(std::ostream* stream_p) {
+    auto result = literals::Mode::None;
+    // if not an ostream, it must be a custom process stream
+    // so we cannot detect how it works to process
     if (!stream_p)
-        return color_literals::Mode::Bits24;
+        return literals::Mode::Bits24;
     if (stream_table.contains(stream_p))
         return stream_table[stream_p];
 #if defined(__WIN32)
@@ -95,9 +97,9 @@ color_literals::Mode LazyMode::get_value(std::ostream* stream_p) {
 #endif
     }
 
-    // not a standard ostream in system, like ofstream, sstream, etc.
+    // not a standard ostream in system, like ofstream, osstream, etc.
     if (!channel) {
-        result = color_literals::Mode::None;
+        result = literals::Mode::None;
         goto end;
     }
 #undef to_addr
@@ -108,8 +110,9 @@ color_literals::Mode LazyMode::get_value(std::ostream* stream_p) {
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 
     GetVersionEx(&osvi);
+    // lower than Windows 10 doesn't have official ansi support
     if (osvi.dwMajorVersion < 10) {
-        result = color_literals::Mode::Bits3_4;
+        result = literals::Mode::Bits3_4;
         goto end;
     }
 
@@ -118,25 +121,25 @@ color_literals::Mode LazyMode::get_value(std::ostream* stream_p) {
         (!SetConsoleMode(h, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)))
         goto last_check;
 
-    result = color_literals::Mode::Bits24;
+    result = literals::Mode::Bits24;
 #endif
 last_check:
     if (const char* colorterm = std::getenv("COLORTERM")) {
         const std::string ct(colorterm);
         if (ct.find("truecolor") != std::string::npos ||
             ct.find("24bit") != std::string::npos)
-            result = color_literals::Mode::Bits24;
+            result = literals::Mode::Bits24;
         else if (ct.find("8bit") != std::string::npos)
-            result = color_literals::Mode::Bits8;
+            result = literals::Mode::Bits8;
     }
 
     if (const char* term = std::getenv("TERM")) {
         const std::string t(term);
         if (t.find("256color") != std::string::npos)
-            result = color_literals::Mode::Bits8;
+            result = literals::Mode::Bits8;
         else if (t.find("color") != std::string::npos)
-            result = color_literals::Mode::Bits3_4;
-        else result = color_literals::Mode::Bits24;
+            result = literals::Mode::Bits3_4;
+        else result = literals::Mode::Bits24;
     }
 end:
     return stream_table[stream_p] = result;
@@ -160,107 +163,87 @@ FormatString &FormatBase::apply(FormatString &str, const size_t start, const siz
     return str;
 }
 
-ColorFormat& ColorFormat::set_basic(const color_literals::Ansi color, const color_literals::Position pos) {
-    set_level(pos == color_literals::Position::Background ? Bg : Fg);
+ColorFormat& ColorFormat::set_basic(const literals::Ansi color, const literals::Position pos) {
+    set_level(pos == literals::Position::Background ? Bg : Fg);
     set_prefix(std::format(
         "\033[{}{}m",
-        3 + (pos == color_literals::Position::Background),
+        3 + (pos == literals::Position::Background),
         static_cast<size_t>(color)));
     return *this;
 }
 
-ColorFormat& ColorFormat::set_8bit(const color_literals::Ansi color, const color_literals::Position pos) {
-    set_level(pos == color_literals::Position::Background ? Bg : Fg);
+ColorFormat& ColorFormat::set_8bit(const literals::Ansi color, const literals::Position pos) {
+    set_level(pos == literals::Position::Background ? Bg : Fg);
     set_prefix(std::format(
         "\033[{}8;5;{}m",
-        3 + (pos == color_literals::Position::Background),
+        3 + (pos == literals::Position::Background),
         static_cast<size_t>(color)));
     return *this;
 }
 
-ColorFormat& ColorFormat::set_8bit(const byte gray, const color_literals::Position pos) {
-    set_level(pos == color_literals::Position::Background ? Bg : Fg);
+ColorFormat& ColorFormat::set_8bit(const byte gray, const literals::Position pos) {
+    set_level(pos == literals::Position::Background ? Bg : Fg);
     set_prefix(std::format(
         "\033[{}8;5;{}m",
-        3 + (pos == color_literals::Position::Background),
+        3 + (pos == literals::Position::Background),
         232 + gray));
     return *this;
 }
 
-ColorFormat& ColorFormat::set_8bit(const byte r, const byte g, const byte b, const color_literals::Position pos) {
-    set_level(pos == color_literals::Position::Background ? Bg : Fg);
+ColorFormat& ColorFormat::set_8bit(const byte r, const byte g, const byte b, const literals::Position pos) {
+    set_level(pos == literals::Position::Background ? Bg : Fg);
     set_prefix(std::format(
         "\033[{}8;5;{}m",
-        3 + (pos == color_literals::Position::Background),
+        3 + (pos == literals::Position::Background),
         16 + 36 * r + 6 * g + b));
     return *this;
 }
 
-ColorFormat& ColorFormat::set_24bit(const byte r, const byte g, const byte b, const color_literals::Position pos) {
-    set_level(pos == color_literals::Position::Background ? Bg : Fg);
+ColorFormat& ColorFormat::set_24bit(const byte r, const byte g, const byte b, const literals::Position pos) {
+    set_level(pos == literals::Position::Background ? Bg : Fg);
     set_prefix(std::format(
-        "\033[{}8;5;{};{};{}m",
-        3 + (pos == color_literals::Position::Background),
+        "\033[{}8;2;{};{};{}m",
+        3 + (pos == literals::Position::Background),
         r, g, b));
     return *this;
+}
+
+void FontFormat::update() {
+    set_level(static_cast<Level>((bold ? Bold : Basic) |
+                                 (italic ? Italic : Basic) |
+                                 (underline ? Underline : Basic) |
+                                 (overline ? Overline : Basic)));
+    set_prefix(std::string() +
+        (bold ? "\033[1m" : "\033[21;22m") +
+        (italic ? "\033[3m" : "\033[23m") +
+        (underline ? "\033[4m" : "\033[24m") +
+        (overline ? "\033[53m" : "\033[55m"));
 }
 
 FontFormat& FontFormat::set_bold(const bool to_bold) {
     if (bold == to_bold) return *this;
     bold = to_bold;
-    set_level(static_cast<Level>((bold ? Bold : Basic) |
-                                 (italic ? Italic : Basic) |
-                                 (underline ? Underline : Basic) |
-                                 (overline ? Overline : Basic)));
-    set_prefix(std::string() +
-        (bold ? "\033[1m" : "\033[21;22m") +
-        (italic ? "\033[3m" : "\033[23m") +
-        (underline ? "\033[4m" : "\033[24m") +
-        (overline ? "\033[53m" : "\033[55m"));
+    update();
     return *this;
 }
 
-FontFormat& FontFormat::set_italic(bool to_italic) {
+FontFormat& FontFormat::set_italic(const bool to_italic) {
     if (italic == to_italic) return *this;
     italic = to_italic;
-    set_level(static_cast<Level>((bold ? Bold : Basic) |
-                                 (italic ? Italic : Basic) |
-                                 (underline ? Underline : Basic) |
-                                 (overline ? Overline : Basic)));
-    set_prefix(std::string() +
-        (bold ? "\033[1m" : "\033[21;22m") +
-        (italic ? "\033[3m" : "\033[23m") +
-        (underline ? "\033[4m" : "\033[24m") +
-        (overline ? "\033[53m" : "\033[55m"));
+    update();
     return *this;
 }
 
-FontFormat &FontFormat::set_underline(bool to_underline) {
+FontFormat &FontFormat::set_underline(const bool to_underline) {
     if (underline == to_underline) return *this;
     underline = to_underline;
-    set_level(static_cast<Level>((bold ? Bold : Basic) |
-                                 (italic ? Italic : Basic) |
-                                 (underline ? Underline : Basic) |
-                                 (overline ? Overline : Basic)));
-    set_prefix(std::string() +
-        (bold ? "\033[1m" : "\033[21;22m") +
-        (italic ? "\033[3m" : "\033[23m") +
-        (underline ? "\033[4m" : "\033[24m") +
-        (overline ? "\033[53m" : "\033[55m"));
+    update();
     return *this;
 }
 
-FontFormat& FontFormat::set_overline(bool to_overline) {
+FontFormat& FontFormat::set_overline(const bool to_overline) {
     if (overline == to_overline) return *this;
     overline = to_overline;
-    set_level(static_cast<Level>((bold ? Bold : Basic) |
-                                 (italic ? Italic : Basic) |
-                                 (underline ? Underline : Basic) |
-                                 (overline ? Overline : Basic)));
-    set_prefix(std::string() +
-        (bold ? "\033[1m" : "\033[21;22m") +
-        (italic ? "\033[3m" : "\033[23m") +
-        (underline ? "\033[4m" : "\033[24m") +
-        (overline ? "\033[53m" : "\033[55m"));
+    update();
     return *this;
 }
